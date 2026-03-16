@@ -145,6 +145,11 @@ export default function NewAdmissionSheet({ isOpen, onClose }: { isOpen: boolean
     }
   }, [isLockerEligible])
 
+  const eligibleLockers = useMemo(
+    () => lockers.filter(l => l.gender === formData.gender || l.gender === 'neutral'),
+    [lockers, formData.gender]
+  )
+
   const currentPlan = useMemo(
     () => combos.find(c => c.combination_key === selectedCombo && c.months === formData.plan_months),
     [combos, selectedCombo, formData.plan_months]
@@ -167,15 +172,6 @@ export default function NewAdmissionSheet({ isOpen, onClose }: { isOpen: boolean
     if (!libraryId || !currentPlan) return
     setLoading(true)
 
-    // Auto-assign locker
-    let lockerId = ''
-    if (formData.has_locker && isLockerEligible) {
-      const eligible = lockers.filter(l =>
-        l.gender === formData.gender || l.gender === 'neutral'
-      )
-      lockerId = eligible[0]?.id || ''
-    }
-
     const result = await submitNewAdmission({
       library_id: libraryId,
       name: formData.name,
@@ -186,7 +182,7 @@ export default function NewAdmissionSheet({ isOpen, onClose }: { isOpen: boolean
       selected_shifts: formData.shifts,
       shift_display: selectedCombo,
       seat_id: formData.seat_id,
-      locker_id: lockerId || null,
+      locker_id: (formData.has_locker && isLockerEligible) ? (formData.locker_id || null) : null,
       plan_months: formData.plan_months,
       payment_status: formData.payment_status,
       total_fee: totalFee,
@@ -347,18 +343,43 @@ export default function NewAdmissionSheet({ isOpen, onClose }: { isOpen: boolean
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Locker</label>
                     <button
-                      onClick={() => isLockerEligible && setFormData({ ...formData, has_locker: !formData.has_locker })}
+                      onClick={() => {
+                        if (!isLockerEligible || eligibleLockers.length === 0) return;
+                        if (formData.has_locker) {
+                          setFormData({ ...formData, has_locker: false, locker_id: '' })
+                        } else {
+                          setFormData({ ...formData, has_locker: true, locker_id: eligibleLockers[0]?.id || '' })
+                        }
+                      }}
                       className={cn('w-full py-3 rounded-xl border-2 font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2',
-                        !isLockerEligible ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                        (!isLockerEligible || eligibleLockers.length === 0) ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
                           : formData.has_locker ? 'bg-brand-50 border-brand-500 text-brand-700'
                             : 'bg-white border-gray-100 text-gray-500 hover:border-gray-200'
                       )}>
                       {!isLockerEligible
                         ? `Locker not available for ${selectedCombo || '—'} combo`
-                        : formData.has_locker
-                          ? `✓ Locker included (+₹${lockerPolicy?.monthly_fee || 0}/mo)`
-                          : 'Add Locker'}
+                        : eligibleLockers.length === 0
+                          ? 'No lockers available'
+                          : formData.has_locker
+                            ? `✓ Locker included (+₹${lockerPolicy?.monthly_fee || 0}/mo)`
+                            : 'Add Locker'}
                     </button>
+                    
+                    {formData.has_locker && isLockerEligible && eligibleLockers.length > 0 && (
+                      <div className="mt-3 animate-in fade-in slide-in-from-top-2">
+                        <select
+                          value={formData.locker_id}
+                          onChange={e => setFormData({ ...formData, locker_id: e.target.value })}
+                          className="w-full bg-gray-50 border border-brand-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none text-brand-900 font-medium cursor-pointer"
+                        >
+                          {eligibleLockers.map(l => (
+                            <option key={l.id} value={l.id}>
+                              Locker {l.locker_number} ({l.gender === 'neutral' ? 'Unisex' : l.gender})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
