@@ -231,14 +231,6 @@ export default function SeatDetailSheet({
                           </div>
                         </div>
 
-                        {/* Actions */}
-                        <div className="mt-3">
-                          <button className="w-full flex items-center justify-center gap-2 bg-gray-50 text-gray-600 hover:bg-gray-100 p-2.5 rounded-xl font-bold text-xs transition-colors">
-                            <CreditCard className="w-3.5 h-3.5" />
-                            Edit Student
-                          </button>
-                        </div>
-
                         {/* Renew UI for Expired / Expiring */}
                         {(shift.status === 'expired' || shift.status === 'expiring') && (
                           <div className="mt-4 p-4 bg-brand-900 rounded-2xl text-white relative overflow-hidden">
@@ -314,7 +306,10 @@ export default function SeatDetailSheet({
               <h3 className="text-lg font-bold text-gray-900">Seat {detail.seat_number} is Free</h3>
               <p className="text-sm text-gray-500">Admit a new student to this seat.</p>
             </div>
-            <button className="bg-brand-500 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-lg shadow-brand-100 active:scale-95 transition-transform">
+            <button 
+              onClick={() => { setExpandedShift(null); onClose(); }} 
+              className="bg-brand-500 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-lg shadow-brand-100 active:scale-95 transition-transform"
+            >
               Close
             </button>
           </div>
