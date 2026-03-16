@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { X, Loader2, User, Grid, CreditCard, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle } from 'lucide-react'
+import { X, Loader2, User, Grid, CreditCard, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { cn, formatPhone, sortSeats } from '@/lib/utils'
@@ -43,6 +43,7 @@ export default function EditStudentSheet({ isOpen, onClose, student }: EditStude
   const [seats, setSeats] = useState<Seat[]>([])
   const [lockers, setLockers] = useState<Locker[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [isSeatDropdownOpen, setIsSeatDropdownOpen] = useState(false)
 
   // Form State
   const [formData, setFormData] = useState({
@@ -236,25 +237,61 @@ export default function EditStudentSheet({ isOpen, onClose, student }: EditStude
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Assigned Seat</label>
             {formData.shifts.length > 0 ? (
               <>
-                <select 
-                  value={formData.seat_id}
-                  onChange={e => setFormData({...formData, seat_id: e.target.value})}
-                  className={cn(
-                    "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all outline-none",
-                    availableSeats.length === 0 && "border-red-200 bg-red-50 text-red-500"
-                  )}
-                >
-                  <option value="">{availableSeats.length > 0 ? 'Select a seat' : 'No seats available'}</option>
-                  {availableSeats.map((s, idx) => (
-                    <option key={s.id} value={s.id}>
-                      {s.seat_number} {idx === 0 ? '(Recommended)' : ''}
-                    </option>
-                  ))}
-                </select>
-                {availableSeats.length === 0 && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-100 text-red-600 mt-2">
+                {availableSeats.length === 0 ? (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-100 text-red-600">
                     <AlertCircle className="w-4 h-4" />
                     <p className="text-[10px] font-bold uppercase tracking-wider">No seats available for {formData.shifts.join('+')}</p>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsSeatDropdownOpen(!isSeatDropdownOpen)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none flex justify-between items-center"
+                    >
+                      <span className="font-bold text-gray-800">
+                        {formData.seat_id 
+                          ? `Seat ${availableSeats.find(s => s.id === formData.seat_id)?.seat_number || ''}` 
+                          : 'Select a seat...'}
+                      </span>
+                      <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", isSeatDropdownOpen && "rotate-180")} />
+                    </button>
+                    
+                    {isSeatDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-2xl max-h-64 overflow-y-auto z-50 p-2 space-y-1">
+                        {availableSeats.map((s, idx) => {
+                          const otherStudentsShifts = s.student_seat_shifts?.filter(ss => ss.student_id !== student?.id).map(ss => ss.shift_code) || []
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => { setFormData({ ...formData, seat_id: s.id }); setIsSeatDropdownOpen(false) }}
+                              type="button"
+                              className={cn("w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors border",
+                                formData.seat_id === s.id ? "border-brand-500 bg-brand-50/50" : "border-transparent"
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-brand-900 w-10 text-left">{s.seat_number}</span>
+                                {idx === 0 && <span className="text-[10px] font-bold text-brand-500 ml-1 bg-brand-100 px-1.5 py-0.5 rounded">RECOMMENDED</span>}
+                              </div>
+                              <div className="flex gap-1 w-28">
+                                {['M', 'A', 'E', 'N'].map(shiftCode => {
+                                  const isOccupied = otherStudentsShifts.includes(shiftCode)
+                                  return (
+                                    <div key={shiftCode} className={cn(
+                                      "flex-1 py-1 rounded text-[10px] font-black text-center border",
+                                      isOccupied ? "bg-red-50 text-red-600 border-red-200" : "bg-green-50 text-green-600 border-green-200"
+                                    )}>
+                                      {shiftCode}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
