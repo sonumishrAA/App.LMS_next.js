@@ -77,11 +77,12 @@ export async function submitNewAdmission(data: any) {
     }
 
     // 5. Insert Notification
+    const staffName = staffDetails?.name || 'Staff'
     await adminClient.from('notifications').insert({
       library_id: data.library_id,
       type: 'new_admission',
       title: 'New Admission',
-      message: `${data.name} admitted to seat ${data.shift_display}. Fee: ₹${data.total_fee} (${data.payment_status}).`,
+      message: `${data.name} admitted to seat ${data.shift_display}. Fee: ₹${data.total_fee} (${data.payment_status}). By ${staffName}.`,
       is_read: false
     })
 
@@ -94,6 +95,9 @@ export async function submitNewAdmission(data: any) {
 
 export async function updateStudent(studentId: string, data: any) {
   const adminClient = createAdminClient()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: staffDetails } = await supabase.from('staff').select('role, name').eq('user_id', user?.id).single()
   
   try {
     // 1.5 Check if seat-shifts are already taken by SOMEONE ELSE
@@ -158,14 +162,14 @@ export async function updateStudent(studentId: string, data: any) {
     }
 
     // 4. Insert Notification
-    // Get library_id from student
+    const staffName = staffDetails?.name || 'Staff'
     const { data: studentData } = await adminClient.from('students').select('library_id').eq('id', studentId).single()
     if (studentData) {
       await adminClient.from('notifications').insert({
         library_id: studentData.library_id,
         type: 'student_updated',
         title: 'Student Updated',
-        message: `${data.name}'s profile updated. Shifts: ${data.shifts.sort().join('+')}.`,
+        message: `${data.name}'s profile updated. Shifts: ${data.shifts.sort().join('+')}. By ${staffName}.`,
         is_read: false
       })
     }
@@ -179,6 +183,9 @@ export async function updateStudent(studentId: string, data: any) {
 
 export async function renewStudent(data: any) {
   const adminClient = createAdminClient()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: staffDetails } = await supabase.from('staff').select('role, name').eq('user_id', user?.id).single()
 
   try {
     // 1. Calculate new end date from renewal_date
@@ -243,13 +250,14 @@ export async function renewStudent(data: any) {
     }
 
     // 6. Insert Notification
+    const staffName = staffDetails?.name || 'Staff'
     const { data: renewedStudent } = await adminClient.from('students').select('library_id, name').eq('id', data.student_id).single()
     if (renewedStudent) {
       await adminClient.from('notifications').insert({
         library_id: renewedStudent.library_id,
         type: 'student_renewed',
         title: 'Plan Renewed',
-        message: `${renewedStudent.name} renewed for ${data.plan_months} month(s). Fee: ₹${data.total_fee} (${data.payment_status}).`,
+        message: `${renewedStudent.name} renewed for ${data.plan_months} month(s). Fee: ₹${data.total_fee} (${data.payment_status}). By ${staffName}.`,
         is_read: false
       })
     }
@@ -260,3 +268,50 @@ export async function renewStudent(data: any) {
     return { success: false, error: error.message }
   }
 }
+
+export async function deleteStudent(studentId: string, studentName: string) {
+  const adminClient = createAdminClient()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: staffDetails } = await supabase.from('staff').select('role, name').eq('user_id', user?.id).single()
+
+  try {
+    // Get student details before deleting
+    const { data: student } = await adminClient
+      .from('students')
+      .select('library_id, locker_id, shift_display')
+      .eq('id', studentId)
+      .single()
+
+    if (!student) throw new Error('Student not found')
+
+    // Free locker if assigned
+    if (student.locker_id) {
+      await adminClient.from('lockers').update({ status: 'free' }).eq('id', student.locker_id)
+    }
+
+    // Delete student (shifts cascade)
+    const { error } = await adminClient
+      .from('students')
+      .delete()
+      .eq('id', studentId)
+
+    if (error) throw new Error(`Delete failed: ${error.message}`)
+
+    // Insert Notification  
+    const staffName = staffDetails?.name || 'Staff'
+    await adminClient.from('notifications').insert({
+      library_id: student.library_id,
+      type: 'student_deleted',
+      title: 'Student Removed',
+      message: `${studentName} (${student.shift_display}) removed. By ${staffName}.`,
+      is_read: false
+    })
+
+    revalidatePath('/')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+

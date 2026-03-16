@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { AlertTriangle, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { supabaseBrowser } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { deleteStudent } from '@/app/actions'
 
 interface DeleteStudentDialogProps {
   isOpen: boolean
@@ -21,13 +21,8 @@ export default function DeleteStudentDialog({ isOpen, onClose, student }: Delete
   const handleDelete = async () => {
     setLoading(true)
     try {
-      // 1. Physical delete the student (shifts will cascade delete automatically)
-      const { error: studentError } = await supabaseBrowser
-        .from('students')
-        .delete()
-        .eq('id', student.id)
-
-      if (studentError) throw studentError
+      const res = await deleteStudent(student.id, student.name)
+      if (!res.success) throw new Error(res.error)
 
       router.refresh()
       onClose()

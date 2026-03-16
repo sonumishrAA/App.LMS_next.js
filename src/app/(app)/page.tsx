@@ -65,6 +65,30 @@ export default async function DashboardPage() {
     supabase.from('seats').select('*', { count: 'exact', head: true }).eq('library_id', libraryId).eq('is_active', true),
   ])
 
+  // Generate expiry notifications for newly expired students
+  if (expiredStudents && expiredStudents.length > 0) {
+    for (const es of expiredStudents) {
+      // Check if we already notified about this student's expiry
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('library_id', libraryId)
+        .eq('type', 'expiry_warning')
+        .ilike('message', `%${es.name}%expired%`)
+      
+      if (!count || count === 0) {
+        const daysPast = Math.abs(Math.floor((new Date().getTime() - new Date(es.end_date).getTime()) / (1000 * 60 * 60 * 24)))
+        await supabase.from('notifications').insert({
+          library_id: libraryId,
+          type: 'expiry_warning',
+          title: 'Plan Expired',
+          message: `${es.name}'s plan expired ${daysPast} day(s) ago. Renew or remove to free their seat.`,
+          is_read: false
+        })
+      }
+    }
+  }
+
   // Calculate collected fee this month
   const collectedThisMonth = paidStudentsThisMonth?.reduce((acc, s) => {
     if (s.payment_status === 'paid') return acc + Number(s.total_fee || 0)
