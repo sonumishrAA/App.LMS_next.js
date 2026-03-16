@@ -41,7 +41,9 @@ export default function RenewStudentSheet({ isOpen, onClose, student }: RenewStu
     locker_id: '',
     has_locker: false,
     plan_months: 1,
-    payment_status: 'paid' as 'paid' | 'pending',
+    payment_status: 'paid' as string,
+    amount_paid: 0,
+    discount_amount: 0,
     renewal_date: new Date().toISOString().split('T')[0],
   })
 
@@ -55,6 +57,8 @@ export default function RenewStudentSheet({ isOpen, onClose, student }: RenewStu
         has_locker: !!student.locker_id,
         plan_months: 1,
         payment_status: 'paid',
+        amount_paid: 0,
+        discount_amount: 0,
         renewal_date: new Date().toISOString().split('T')[0],
       })
       fetchData()
@@ -193,6 +197,8 @@ export default function RenewStudentSheet({ isOpen, onClose, student }: RenewStu
       plan_months: formData.plan_months,
       payment_status: formData.payment_status,
       total_fee: totalFee,
+      amount_paid: formData.payment_status === 'partial' ? formData.amount_paid : (formData.payment_status === 'discounted' ? totalFee - formData.discount_amount : (formData.payment_status === 'paid' ? totalFee : 0)),
+      discount_amount: formData.payment_status === 'discounted' ? formData.discount_amount : 0,
       monthly_rate: currentPlan.fee / formData.plan_months,
       renewal_date: formData.renewal_date,
     })
@@ -404,10 +410,15 @@ export default function RenewStudentSheet({ isOpen, onClose, student }: RenewStu
               {/* Payment Status */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Payment Status</label>
-                <div className="flex gap-3">
-                  {[{ v: 'paid' as const, label: '✅ Paid' }, { v: 'pending' as const, label: '⏳ Pending' }].map(({ v, label }) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { v: 'paid', label: '✅ Paid' },
+                    { v: 'pending', label: '⏳ Pending' },
+                    { v: 'partial', label: '💰 Partial' },
+                    { v: 'discounted', label: '🏷️ Discount' },
+                  ].map(({ v, label }) => (
                     <button key={v} onClick={() => setFormData({ ...formData, payment_status: v })}
-                      className={cn('flex-1 py-3 rounded-xl border-2 font-bold text-xs uppercase tracking-widest transition-all',
+                      className={cn('py-3 rounded-xl border-2 font-bold text-xs uppercase tracking-widest transition-all',
                         formData.payment_status === v ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-gray-100 text-gray-400'
                       )}>
                       {label}
@@ -415,6 +426,34 @@ export default function RenewStudentSheet({ isOpen, onClose, student }: RenewStu
                   ))}
                 </div>
               </div>
+
+              {/* Partial Payment Amount */}
+              {formData.payment_status === 'partial' && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Amount Paid</label>
+                  <input type="number" value={formData.amount_paid || ''}
+                    onChange={e => setFormData({ ...formData, amount_paid: Number(e.target.value) })}
+                    className="w-full bg-gray-50 border border-blue-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500 font-mono font-bold"
+                    placeholder="Enter amount paid" min={0} max={totalFee} />
+                  {formData.amount_paid > 0 && (
+                    <p className="text-xs font-bold text-red-500 ml-1">Remaining: ₹{(totalFee - formData.amount_paid).toLocaleString()}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Discount Amount */}
+              {formData.payment_status === 'discounted' && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Discount Amount</label>
+                  <input type="number" value={formData.discount_amount || ''}
+                    onChange={e => setFormData({ ...formData, discount_amount: Number(e.target.value) })}
+                    className="w-full bg-gray-50 border border-purple-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500 font-mono font-bold"
+                    placeholder="Enter discount amount" min={0} max={totalFee} />
+                  {formData.discount_amount > 0 && (
+                    <p className="text-xs font-bold text-green-600 ml-1">Final Price: ₹{(totalFee - formData.discount_amount).toLocaleString()}</p>
+                  )}
+                </div>
+              )}
 
               {/* Renewal Date */}
               <div className="space-y-1.5">

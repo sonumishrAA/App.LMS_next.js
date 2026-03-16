@@ -63,7 +63,11 @@ export default function StudentList({ students }: { students: any[] }) {
                             "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
                             student.payment_status === 'paid' 
                               ? "bg-green-50 text-green-600 border-green-100" 
-                              : "bg-amber-50 text-amber-600 border-amber-100"
+                              : student.payment_status === 'partial'
+                                ? "bg-blue-50 text-blue-600 border-blue-100"
+                                : student.payment_status === 'discounted'
+                                  ? "bg-purple-50 text-purple-600 border-purple-100"
+                                  : "bg-amber-50 text-amber-600 border-amber-100"
                           )}>
                             {student.payment_status}
                           </div>
@@ -146,6 +150,18 @@ export default function StudentList({ students }: { students: any[] }) {
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-0.5">Fee</span>
                         <span className="text-xs font-black text-gray-800 font-mono">₹{student.total_fee || 0}</span>
+                        {student.payment_status === 'partial' && student.amount_paid != null && (
+                          <div className="flex flex-col mt-0.5">
+                            <span className="text-[8px] text-blue-600 font-bold">Paid: ₹{student.amount_paid}</span>
+                            <span className="text-[8px] text-red-500 font-bold">Due: ₹{(student.total_fee || 0) - (student.amount_paid || 0)}</span>
+                          </div>
+                        )}
+                        {student.payment_status === 'discounted' && student.discount_amount != null && (
+                          <div className="flex flex-col mt-0.5">
+                            <span className="text-[8px] text-purple-600 font-bold">Discount: ₹{student.discount_amount}</span>
+                            <span className="text-[8px] text-green-600 font-bold">Paid: ₹{(student.total_fee || 0) - (student.discount_amount || 0)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex-1 flex items-center gap-2">

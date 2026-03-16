@@ -60,6 +60,8 @@ export default async function StudentsPage({
       payment_status,
       total_fee,
       monthly_rate,
+      amount_paid,
+      discount_amount,
       seat_id,
       locker_id,
       selected_shifts,
