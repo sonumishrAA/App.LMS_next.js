@@ -37,6 +37,8 @@ export default async function SeatMapPage() {
         locker_id,
         payment_status,
         total_fee,
+        amount_paid,
+        discount_amount,
         plan_months
       )
     `)
@@ -84,6 +86,10 @@ export default async function SeatMapPage() {
           studentName: activeStudent.name,
           endDate: activeStudent.end_date,
           daysLeft: sDaysLeft,
+          paymentStatus: activeStudent.payment_status,
+          amountPaid: activeStudent.amount_paid,
+          discountAmount: activeStudent.discount_amount,
+          totalFee: activeStudent.total_fee,
           student: activeStudent
         }
       }
@@ -94,6 +100,10 @@ export default async function SeatMapPage() {
           studentName: expiredStudent.name,
           endDate: expiredStudent.end_date,
           daysLeft: daysUntil(expiredStudent.end_date),
+          paymentStatus: expiredStudent.payment_status,
+          amountPaid: expiredStudent.amount_paid,
+          discountAmount: expiredStudent.discount_amount,
+          totalFee: expiredStudent.total_fee,
           student: expiredStudent
         }
       }

@@ -55,10 +55,12 @@ export default function EditStudentSheet({ isOpen, onClose, student }: EditStude
     has_locker: false,
     payment_status: 'paid'
   })
+  
+  const [originalData, setOriginalData] = useState<typeof formData | null>(null)
 
   useEffect(() => {
     if (isOpen && student) {
-      setFormData({
+      const initialData = {
         name: student.name || '',
         phone: student.phone || '',
         gender: student.gender || 'male',
@@ -67,10 +69,17 @@ export default function EditStudentSheet({ isOpen, onClose, student }: EditStude
         locker_id: student.locker_id || '',
         has_locker: !!student.locker_id,
         payment_status: student.payment_status || 'paid'
-      })
+      }
+      setFormData(initialData)
+      setOriginalData(initialData)
       fetchInitialData(student.library_id)
     }
   }, [isOpen, student])
+
+  const hasChanges = useMemo(() => {
+    if (!originalData) return false
+    return JSON.stringify(formData) !== JSON.stringify(originalData)
+  }, [formData, originalData])
 
   async function fetchInitialData(libId: string) {
     setLoadingData(true)
@@ -283,7 +292,7 @@ export default function EditStudentSheet({ isOpen, onClose, student }: EditStude
 
         <button 
           onClick={handleUpdate}
-          disabled={loading || !formData.name || !formData.seat_id || formData.shifts.length === 0}
+          disabled={loading || !formData.name || !formData.seat_id || formData.shifts.length === 0 || !hasChanges}
           className="w-full bg-brand-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-500/20 active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Changes'}

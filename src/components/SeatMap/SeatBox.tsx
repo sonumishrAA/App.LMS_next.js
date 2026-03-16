@@ -1,14 +1,20 @@
 'use client'
 
+import { useState } from 'react'
 import { cn, SeatStatus } from '@/lib/utils'
 import { JetBrains_Mono } from 'next/font/google'
+import { Settings2, User, Expand } from 'lucide-react'
 
 const mono = JetBrains_Mono({ subsets: ['latin'] })
 
 export interface ShiftRow {
-  code: string           // 'M' | 'A' | 'E' | 'N'
+  shift: string           // 'M' | 'A' | 'E' | 'N'
   studentName: string | null
-  status: 'active' | 'expiring' | 'expired' | 'vacant'
+  status: 'active' | 'expiring' | 'occupied' | 'expired' | 'vacant'
+  paymentStatus?: string
+  amountPaid?: number
+  discountAmount?: number
+  totalFee?: number
 }
 
 interface SeatBoxProps {
@@ -20,25 +26,33 @@ interface SeatBoxProps {
   animationDelay?: number
 }
 
+const PaymentBadge = ({ s, isExpanded }: { s: ShiftRow, isExpanded: boolean }) => {
+  if (s.status === 'vacant') return null
+  
+  if (s.status === 'expired') {
+    return <span className={cn("font-black uppercase border rounded flex items-center justify-center transition-all", isExpanded ? "text-[10px] px-1.5 py-0.5 text-red-600 bg-red-100/50 border-red-200" : "text-[8px] px-1 text-red-500 bg-red-50 border-red-100")}>Exp</span>
+  }
+
+  if (s.paymentStatus === 'paid') return <span className={cn("font-black uppercase border rounded flex items-center justify-center transition-all", isExpanded ? "text-[10px] px-1.5 py-0.5 text-green-600 bg-green-100/50 border-green-200" : "text-[8px] px-1 text-green-500 bg-green-50 border-green-100")}>Paid</span>
+  if (s.paymentStatus === 'pending') return <span className={cn("font-black uppercase border rounded flex items-center justify-center transition-all", isExpanded ? "text-[10px] px-1.5 py-0.5 text-amber-600 bg-amber-100/50 border-amber-200" : "text-[8px] px-1 text-amber-500 bg-amber-50 border-amber-100")}>Pend</span>
+  
+  if (s.paymentStatus === 'partial') return (
+    <div className={cn("flex flex-col", isExpanded ? "items-start gap-0.5" : "items-center")}>
+        <span className={cn("font-black uppercase border rounded flex items-center justify-center transition-all", isExpanded ? "text-[10px] px-1.5 py-0.5 text-blue-600 bg-blue-100/50 border-blue-200" : "text-[8px] px-1 text-blue-500 bg-blue-50 border-blue-100")}>Part</span>
+        {isExpanded && <span className="text-[9px] font-black text-red-500 bg-red-50 px-1 py-0.5 rounded border border-red-100">Due: ₹{(s.totalFee || 0) - (s.amountPaid || 0)}</span>}
+    </div>
+  )
+
+  if (s.paymentStatus === 'discounted') return <span className={cn("font-black uppercase border rounded flex items-center justify-center transition-all", isExpanded ? "text-[10px] px-1.5 py-0.5 text-purple-600 bg-purple-100/50 border-purple-200" : "text-[8px] px-1 text-purple-500 bg-purple-50 border-purple-100")}>Disc</span>
+  
+  return null
+}
+
 const boxStyles: Record<SeatStatus, string> = {
-  free: 'bg-white border-gray-200 text-gray-600 hover:border-brand-300 hover:bg-brand-50/30',
-  occupied: 'bg-brand-100 border-brand-400 text-brand-900',
-  expiring: 'bg-amber-50 border-amber-400 text-amber-900',
-  expired: 'bg-red-50 border-red-400 text-red-900',
-}
-
-const shiftDotStyles: Record<ShiftRow['status'], string> = {
-  active: 'bg-brand-500',
-  expiring: 'bg-amber-500',
-  expired: 'bg-red-500',
-  vacant: 'bg-gray-200',
-}
-
-const shiftNameStyles: Record<ShiftRow['status'], string> = {
-  active: 'text-brand-700 font-semibold',
-  expiring: 'text-amber-700 font-semibold',
-  expired: 'text-red-700 font-bold',
-  vacant: 'text-gray-300 italic',
+  free: 'border-gray-200',
+  occupied: 'border-brand-400',
+  expiring: 'border-amber-400',
+  expired: 'border-red-400',
 }
 
 export default function SeatBox({
@@ -49,62 +63,150 @@ export default function SeatBox({
   onClick,
   animationDelay = 0,
 }: SeatBoxProps) {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        // Fixed size — taller to fit shift rows
-        'relative w-full min-h-[88px] md:min-h-[104px]',
-        'rounded-xl border-2 flex flex-col p-2 gap-1',
-        'transition-all duration-150 ease-out',
-        'hover:scale-105 hover:shadow-lg hover:z-10',
-        'active:scale-95',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+        'relative w-full h-[320px] rounded-2xl border-2 flex flex-col overflow-hidden bg-white shadow-sm',
+        'transition-all duration-300 ease-out hover:shadow-xl hover:border-brand-300',
         boxStyles[overallStatus],
         overallStatus === 'expiring' && 'expiring-pulse',
       )}
       style={{
         animation: `seatFadeIn 0.35s ease-out ${animationDelay}ms both`,
       }}
-      aria-label={`Seat ${seatNumber} — ${overallStatus}`}
+      onMouseLeave={() => setExpandedIndex(null)}
     >
-      {/* Top row: seat number + locker dot */}
-      <div className="flex items-center justify-between w-full">
-        <span className={cn('text-[13px] font-black leading-none tracking-tight', mono.className)}>
+      {/* Header section — Fixed height */}
+      <div className="flex items-center justify-between p-3 border-b border-gray-100 bg-gray-50/50 shrink-0">
+        <span className={cn('text-lg font-black leading-none tracking-tight text-gray-900', mono.className)}>
           {seatNumber}
         </span>
-        {hasLocker && overallStatus !== 'free' && (
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shadow-sm" title="Has locker" />
-        )}
+        <div className="flex gap-2 items-center">
+          {hasLocker && (
+            <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse border border-brand-200 shadow-sm" title="Has locker" />
+          )}
+          <button 
+            onClick={onClick}
+            className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50 transition-all shadow-sm"
+            title="Manage Seat Details"
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
-      {/* Shift rows */}
-      <div className="flex flex-col gap-[2px] w-full mt-auto">
-        {shifts.map(s => (
-          <div key={s.code} className="flex items-center gap-1 w-full">
-            {/* Shift code */}
-            <span className={cn('text-[9px] font-black w-3 leading-none', mono.className,
-              s.status === 'vacant' ? 'text-gray-300' : 'text-gray-500'
-            )}>
-              {s.code}
-            </span>
-            {/* Status dot */}
-            <span className={cn('w-1 h-1 rounded-full flex-shrink-0', shiftDotStyles[s.status])} />
-            {/* Student name */}
-            <span className={cn(
-              'text-[9px] leading-none truncate flex-1',
-              shiftNameStyles[s.status],
-            )}>
-              {s.status === 'vacant' ? 'vacant' : (s.studentName?.split(' ')[0] || '—')}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Accordion shifts area — Takes remaining space */}
+      <div className="flex flex-col flex-1 p-1 gap-1">
+        {shifts.map((s, idx) => {
+          const isExpanded = expandedIndex === idx
+          const isCollapsed = expandedIndex !== null && !isExpanded
 
-      {/* Expiring pulse ring */}
-      {overallStatus === 'expiring' && (
-        <span className="absolute inset-0 rounded-xl border-2 border-amber-400 animate-ping opacity-20 pointer-events-none" />
-      )}
-    </button>
+          // Define dynamic background based on status
+          let shiftBg = 'bg-gray-50 hover:bg-gray-100'
+          let shiftBorder = 'border-gray-100'
+          let textColor = 'text-gray-400'
+          let IconBg = 'bg-gray-200 text-gray-500'
+
+          if (s.status !== 'vacant') {
+            if (s.status === 'expired') {
+              shiftBg = isExpanded ? 'bg-red-50' : 'bg-red-50/50'
+              shiftBorder = 'border-red-200'
+              textColor = 'text-red-900'
+              IconBg = 'bg-red-100 text-red-600 border border-red-200'
+            } else if (s.status === 'expiring') {
+              shiftBg = isExpanded ? 'bg-amber-50' : 'bg-amber-50/50'
+              shiftBorder = 'border-amber-200'
+              textColor = 'text-amber-900'
+              IconBg = 'bg-amber-100 text-amber-600 border border-amber-200'
+            } else {
+              shiftBg = isExpanded ? 'bg-brand-50' : 'bg-brand-50/50'
+              shiftBorder = 'border-brand-200'
+              textColor = 'text-brand-900'
+              IconBg = 'bg-brand-100 text-brand-600 border border-brand-200'
+            }
+          }
+
+          return (
+            <div
+              key={s.shift}
+              onClick={() => setExpandedIndex(isExpanded ? null : idx)}
+              className={cn(
+                'rounded-xl border flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] cursor-pointer overflow-hidden',
+                shiftBg, shiftBorder,
+                isExpanded ? 'flex-[7] shadow-inner p-3' : isCollapsed ? 'flex-[1] p-2 opacity-60 hover:opacity-100' : 'flex-[2.5] p-2 hover:shadow-md'
+              )}
+            >
+              {/* Top Row: M/A/E/N Icon + Name + Badge */}
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0 font-black text-xs", mono.className, IconBg)}>
+                    {s.shift}
+                  </div>
+                  
+                  {(!isCollapsed || isExpanded) && (
+                    <span className={cn('text-xs font-bold truncate transition-all duration-300', textColor)}>
+                      {s.status === 'vacant' ? <span className="opacity-50 italic">Vacant</span> : s.studentName}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Always show small badge when not expanded, rich badge when expanded */}
+                <div className="flex shrink-0 ml-2">
+                  <PaymentBadge s={s} isExpanded={isExpanded} />
+                </div>
+              </div>
+
+              {/* Expanded content fades in */}
+              <div className={cn(
+                "flex flex-col mt-4 opacity-0 transition-opacity duration-300 delay-100 space-y-3",
+                isExpanded && "opacity-100 flex-1 justify-end pb-1"
+              )}>
+                {s.status !== 'vacant' && s.studentName && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-white/60 p-2 rounded-lg border border-white/40 shadow-sm backdrop-blur-sm">
+                        <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-0.5">End Date</p>
+                        <p className={cn("font-bold truncate", s.status === 'expired' ? 'text-red-600' : 'text-gray-800')}>
+                          {s.status === 'expired' && <span className="mr-1">⚠️</span>}
+                          {s.status === 'expiring' && <span className="mr-1">⏳</span>}
+                          {new Date((s as any).endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                        </p>
+                      </div>
+                      
+                      <div className="bg-white/60 p-2 rounded-lg border border-white/40 shadow-sm backdrop-blur-sm">
+                        <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-0.5">Fee Paid</p>
+                        <p className="font-bold text-gray-800 font-mono truncate">
+                           ₹{s.paymentStatus === 'partial' ? s.amountPaid : (s.paymentStatus === 'discounted' ? (s.totalFee || 0) - (s.discountAmount || 0) : s.totalFee || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onClick(); }}
+                      className="mt-auto w-full py-2 bg-white flex items-center justify-center gap-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border border-gray-100 hover:border-brand-300 hover:text-brand-600 transition-colors"
+                    >
+                      <span>Manage Student</span>
+                      <Expand className="w-3 h-3" />
+                    </button>
+                  </>
+                )}
+                {s.status === 'vacant' && (
+                  <div className="flex items-center justify-center flex-1">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onClick(); }}
+                      className="px-4 py-2 bg-white text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border border-gray-200 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                    >
+                      Assign Student
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
