@@ -31,26 +31,20 @@ export default async function DashboardPage() {
   const [
     { count: totalStudents },
     { data: activeSeatsData },
-    { data: pendingStudents },
-    { data: partialStudents },
-    { data: paidStudentsThisMonth },
     { data: expiredStudents, count: expiredCount },
     { data: notifications },
     { count: newAdmissionsThisMonth },
     { data: shifts },
     { data: shiftOccupancy },
     { count: totalSeats },
+    { data: feCollected },
+    { data: feRefunded },
+    { data: fePending },
   ] = await Promise.all([
     // Total students
     supabase.from('students').select('*', { count: 'exact', head: true }).eq('library_id', libraryId),
     // Active seats (non-expired students)
     supabase.from('students').select('seat_id', { count: 'exact', head: false }).eq('library_id', libraryId).gte('end_date', today),
-    // Pending fee students
-    supabase.from('students').select('total_fee').eq('library_id', libraryId).eq('payment_status', 'pending'),
-    // Partial payment students
-    supabase.from('students').select('total_fee, amount_paid').eq('library_id', libraryId).eq('payment_status', 'partial'),
-    // Paid/discounted students this month (collected fee)
-    supabase.from('students').select('total_fee, amount_paid, discount_amount, payment_status').eq('library_id', libraryId).gte('admission_date', monthStart).lte('admission_date', monthEnd).in('payment_status', ['paid', 'discounted', 'partial']),
     // Expired students
     supabase.from('students').select('id, name, end_date, seat_id').eq('library_id', libraryId).lt('end_date', today),
     // Recent notifications
@@ -63,6 +57,12 @@ export default async function DashboardPage() {
     supabase.from('students').select('selected_shifts').eq('library_id', libraryId).gte('end_date', today),
     // Total seats
     supabase.from('seats').select('*', { count: 'exact', head: true }).eq('library_id', libraryId).eq('is_active', true),
+    // Financial: Collected this month (positive amounts)
+    supabase.from('financial_events').select('amount').eq('library_id', libraryId).gt('amount', 0).gte('created_at', monthStart).lte('created_at', monthEnd + 'T23:59:59'),
+    // Financial: Refunded this month (negative amounts)
+    supabase.from('financial_events').select('amount').eq('library_id', libraryId).lt('amount', 0).gte('created_at', monthStart).lte('created_at', monthEnd + 'T23:59:59'),
+    // Financial: All pending (latest pending_amount per student where pending > 0)
+    supabase.from('financial_events').select('student_id, pending_amount, created_at').eq('library_id', libraryId).gt('pending_amount', 0).order('created_at', { ascending: false }),
   ])
 
   // Generate expiry notifications for newly expired students
@@ -89,20 +89,20 @@ export default async function DashboardPage() {
     }
   }
 
-  // Calculate collected fee this month
-  const collectedThisMonth = paidStudentsThisMonth?.reduce((acc, s) => {
-    if (s.payment_status === 'paid') return acc + Number(s.total_fee || 0)
-    if (s.payment_status === 'discounted') return acc + Number(s.total_fee || 0) - Number(s.discount_amount || 0)
-    if (s.payment_status === 'partial') return acc + Number(s.amount_paid || 0)
-    return acc
-  }, 0) || 0
+  // Financial calculations from financial_events
+  const collectedThisMonth = feCollected?.reduce((acc, e) => acc + Number(e.amount || 0), 0) || 0
+  const refundedThisMonth = Math.abs(feRefunded?.reduce((acc, e) => acc + Number(e.amount || 0), 0) || 0)
+  const netRevenue = collectedThisMonth - refundedThisMonth
 
-  // Pending fees total
-  const totalPending = pendingStudents?.reduce((acc, curr) => acc + Number(curr.total_fee), 0) || 0
-
-  // Partial payment remaining  
-  const partialCount = partialStudents?.length || 0
-  const partialRemaining = partialStudents?.reduce((acc, s) => acc + (Number(s.total_fee || 0) - Number(s.amount_paid || 0)), 0) || 0
+  // Pending: get latest pending per student (deduplicate by student_id)
+  const pendingByStudent = new Map<string, number>()
+  fePending?.forEach((e: any) => {
+    if (!pendingByStudent.has(e.student_id)) {
+      pendingByStudent.set(e.student_id, Number(e.pending_amount || 0))
+    }
+  })
+  const totalPending = Array.from(pendingByStudent.values()).reduce((acc, v) => acc + v, 0)
+  const pendingStudentCount = pendingByStudent.size
 
   // Count unique active seats
   const uniqueActiveSeatIds = new Set(activeSeatsData?.map((s: any) => s.seat_id).filter(Boolean))
@@ -147,17 +147,22 @@ export default async function DashboardPage() {
             <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mt-1">Fee Collected</p>
           </div>
           <div className="text-right space-y-1">
-            <div>
-              <p className="text-lg font-black font-mono leading-none text-amber-300">₹{totalPending.toLocaleString('en-IN')}</p>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Pending</p>
-            </div>
-            {partialCount > 0 && (
+            {refundedThisMonth > 0 && (
               <div>
-                <p className="text-sm font-black font-mono leading-none text-blue-300">₹{partialRemaining.toLocaleString('en-IN')}</p>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Partial Due ({partialCount})</p>
+                <p className="text-sm font-black font-mono leading-none text-red-300">-₹{refundedThisMonth.toLocaleString('en-IN')}</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Refunded</p>
               </div>
             )}
+            <div>
+              <p className="text-lg font-black font-mono leading-none text-amber-300">₹{totalPending.toLocaleString('en-IN')}</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Pending ({pendingStudentCount})</p>
+            </div>
           </div>
+        </div>
+        {/* Net Revenue Bar */}
+        <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Net Revenue</p>
+          <p className="text-sm font-black font-mono text-green-300">₹{netRevenue.toLocaleString('en-IN')}</p>
         </div>
       </div>
 

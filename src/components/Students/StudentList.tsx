@@ -96,7 +96,7 @@ export default function StudentList({ students }: { students: any[] }) {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation()
-                        setDeleteModal({ isOpen: true, student: { id: student.id, name: student.name, seat_number: student.seats?.seat_number } })
+                        setDeleteModal({ isOpen: true, student: { id: student.id, name: student.name, seat_number: student.seats?.seat_number, payment_status: student.payment_status, total_fee: student.total_fee, amount_paid: student.amount_paid, discount_amount: student.discount_amount } })
                       }}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                     >

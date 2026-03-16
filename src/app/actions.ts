@@ -3,6 +3,33 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+// ─── Financial Event Helper (Append-Only Ledger) ───
+async function insertFinancialEvent(client: any, data: {
+  library_id: string
+  student_id?: string | null
+  student_name: string
+  event_type: string
+  amount: number
+  pending_amount: number
+  payment_mode: string
+  actor_role: string
+  actor_name: string
+  note?: string
+}) {
+  await client.from('financial_events').insert({
+    library_id: data.library_id,
+    student_id: data.student_id || null,
+    student_name: data.student_name,
+    event_type: data.event_type,
+    amount: data.amount,
+    pending_amount: data.pending_amount,
+    payment_mode: data.payment_mode,
+    actor_role: data.actor_role,
+    actor_name: data.actor_name,
+    note: data.note || null,
+  })
+}
+
 export async function submitNewAdmission(data: any) {
   const adminClient = createAdminClient()
   const supabase = await createClient()
@@ -76,8 +103,51 @@ export async function submitNewAdmission(data: any) {
       await adminClient.from('lockers').update({ status: 'occupied' }).eq('id', data.locker_id)
     }
 
-    // 5. Insert Notification
+    // 5. Insert Financial Event
     const staffName = staffDetails?.name || 'Staff'
+    const staffRole = staffDetails?.role || 'staff'
+    const totalFee = Number(data.total_fee || 0)
+    const amountPaid = Number(data.amount_paid || 0)
+    const discountAmt = Number(data.discount_amount || 0)
+
+    if (data.payment_status === 'paid') {
+      await insertFinancialEvent(adminClient, {
+        library_id: data.library_id, student_id: newStudent.id, student_name: data.name,
+        event_type: 'ADMISSION_FULL', amount: totalFee, pending_amount: 0,
+        payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+        note: `Full payment admission. Seat: ${data.shift_display}`
+      })
+    } else if (data.payment_status === 'partial') {
+      await insertFinancialEvent(adminClient, {
+        library_id: data.library_id, student_id: newStudent.id, student_name: data.name,
+        event_type: 'ADMISSION_PARTIAL', amount: amountPaid, pending_amount: totalFee - amountPaid,
+        payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+        note: `Partial payment. Paid: ₹${amountPaid}, Due: ₹${totalFee - amountPaid}. Seat: ${data.shift_display}`
+      })
+    } else if (data.payment_status === 'pending') {
+      await insertFinancialEvent(adminClient, {
+        library_id: data.library_id, student_id: newStudent.id, student_name: data.name,
+        event_type: 'ADMISSION_PENDING', amount: 0, pending_amount: totalFee,
+        payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+        note: `Pending admission. Full fee: ₹${totalFee}. Seat: ${data.shift_display}`
+      })
+    } else if (data.payment_status === 'discounted') {
+      const paidAfterDiscount = totalFee - discountAmt
+      await insertFinancialEvent(adminClient, {
+        library_id: data.library_id, student_id: newStudent.id, student_name: data.name,
+        event_type: 'ADMISSION_FULL', amount: paidAfterDiscount, pending_amount: 0,
+        payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+        note: `Discounted admission. Actual: ₹${totalFee}, Paid: ₹${paidAfterDiscount}. Seat: ${data.shift_display}`
+      })
+      await insertFinancialEvent(adminClient, {
+        library_id: data.library_id, student_id: newStudent.id, student_name: data.name,
+        event_type: 'DISCOUNT_APPLIED', amount: -discountAmt, pending_amount: 0,
+        payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+        note: `Discount of ₹${discountAmt} applied`
+      })
+    }
+
+    // 6. Insert Notification
     await adminClient.from('notifications').insert({
       library_id: data.library_id,
       type: 'new_admission',
@@ -249,10 +319,47 @@ export async function renewStudent(data: any) {
       await adminClient.from('lockers').update({ status: 'occupied' }).eq('id', data.locker_id)
     }
 
-    // 6. Insert Notification
+    // 6. Insert Financial Event for Renewal
     const staffName = staffDetails?.name || 'Staff'
+    const staffRole = staffDetails?.role || 'staff'
+    const totalFee = Number(data.total_fee || 0)
+    const amountPaid = Number(data.amount_paid || 0)
+    const discountAmt = Number(data.discount_amount || 0)
+
     const { data: renewedStudent } = await adminClient.from('students').select('library_id, name').eq('id', data.student_id).single()
+    
     if (renewedStudent) {
+      let eventType = 'RENEWAL'
+      let eventAmount = totalFee
+      let eventPending = 0
+
+      if (data.payment_status === 'partial') {
+        eventAmount = amountPaid
+        eventPending = totalFee - amountPaid
+      } else if (data.payment_status === 'pending') {
+        eventAmount = 0
+        eventPending = totalFee
+      } else if (data.payment_status === 'discounted') {
+        eventAmount = totalFee - discountAmt
+      }
+
+      await insertFinancialEvent(adminClient, {
+        library_id: renewedStudent.library_id, student_id: data.student_id, student_name: renewedStudent.name,
+        event_type: eventType, amount: eventAmount, pending_amount: eventPending,
+        payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+        note: `Renewed for ${data.plan_months} month(s). Fee: ₹${totalFee} (${data.payment_status}). Seat: ${data.shift_display}`
+      })
+
+      if (data.payment_status === 'discounted' && discountAmt > 0) {
+        await insertFinancialEvent(adminClient, {
+          library_id: renewedStudent.library_id, student_id: data.student_id, student_name: renewedStudent.name,
+          event_type: 'DISCOUNT_APPLIED', amount: -discountAmt, pending_amount: 0,
+          payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+          note: `Renewal discount of ₹${discountAmt} applied`
+        })
+      }
+
+      // 7. Insert Notification
       await adminClient.from('notifications').insert({
         library_id: renewedStudent.library_id,
         type: 'student_renewed',
@@ -269,7 +376,11 @@ export async function renewStudent(data: any) {
   }
 }
 
-export async function deleteStudent(studentId: string, studentName: string) {
+export async function deleteStudent(
+  studentId: string, 
+  studentName: string,
+  refundData?: { refundAmount: number; note?: string }
+) {
   const adminClient = createAdminClient()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -279,18 +390,39 @@ export async function deleteStudent(studentId: string, studentName: string) {
     // Get student details before deleting
     const { data: student } = await adminClient
       .from('students')
-      .select('library_id, locker_id, shift_display')
+      .select('library_id, locker_id, shift_display, payment_status, total_fee, amount_paid, discount_amount')
       .eq('id', studentId)
       .single()
 
     if (!student) throw new Error('Student not found')
+
+    const staffName = staffDetails?.name || 'Staff'
+    const staffRole = staffDetails?.role || 'staff'
+
+    // INSERT FINANCIAL EVENT **BEFORE** DELETE (diary entry first!)
+    const refundAmount = refundData?.refundAmount || 0
+    if (refundAmount > 0) {
+      await insertFinancialEvent(adminClient, {
+        library_id: student.library_id, student_id: studentId, student_name: studentName,
+        event_type: 'REFUND_ON_DELETE', amount: -refundAmount, pending_amount: 0,
+        payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+        note: refundData?.note || `Refund of ₹${refundAmount} on delete. Shifts: ${student.shift_display}`
+      })
+    } else {
+      await insertFinancialEvent(adminClient, {
+        library_id: student.library_id, student_id: studentId, student_name: studentName,
+        event_type: 'NO_REFUND_ON_DELETE', amount: 0, pending_amount: 0,
+        payment_mode: 'cash', actor_role: staffRole, actor_name: staffName,
+        note: refundData?.note || `No refund. Student deleted. Shifts: ${student.shift_display}`
+      })
+    }
 
     // Free locker if assigned
     if (student.locker_id) {
       await adminClient.from('lockers').update({ status: 'free' }).eq('id', student.locker_id)
     }
 
-    // Delete student (shifts cascade)
+    // Delete student (shifts cascade) — AFTER financial event saved
     const { error } = await adminClient
       .from('students')
       .delete()
@@ -299,12 +431,11 @@ export async function deleteStudent(studentId: string, studentName: string) {
     if (error) throw new Error(`Delete failed: ${error.message}`)
 
     // Insert Notification  
-    const staffName = staffDetails?.name || 'Staff'
     await adminClient.from('notifications').insert({
       library_id: student.library_id,
       type: 'student_deleted',
       title: 'Student Removed',
-      message: `${studentName} (${student.shift_display}) removed. By ${staffName}.`,
+      message: `${studentName} (${student.shift_display}) removed.${refundAmount > 0 ? ` Refund: ₹${refundAmount}.` : ' No refund.'} By ${staffName}.`,
       is_read: false
     })
 
@@ -314,4 +445,3 @@ export async function deleteStudent(studentId: string, studentName: string) {
     return { success: false, error: error.message }
   }
 }
-
