@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Edit2, Trash2, Lock, MapPin, User, Calendar, IndianRupee } from 'lucide-react'
+import { Edit2, Trash2, Lock, MapPin, User, Calendar, IndianRupee, RefreshCw } from 'lucide-react'
 import { cn, formatPhone } from '@/lib/utils'
 import DeleteStudentDialog from './DeleteStudentDialog'
 import EditStudentSheet from './EditStudentSheet'
+import RenewStudentSheet from './RenewStudentSheet'
 
 export default function StudentList({ students }: { students: any[] }) {
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; student: any | null }>({
@@ -12,6 +13,10 @@ export default function StudentList({ students }: { students: any[] }) {
     student: null
   })
   const [editSheet, setEditSheet] = useState<{ isOpen: boolean; student: any | null }>({
+    isOpen: false,
+    student: null
+  })
+  const [renewSheet, setRenewSheet] = useState<{ isOpen: boolean; student: any | null }>({
     isOpen: false,
     student: null
   })
@@ -45,14 +50,24 @@ export default function StudentList({ students }: { students: any[] }) {
                       <h4 className="font-black text-gray-900 text-base capitalize truncate tracking-tight">{student.name || 'Unnamed'}</h4>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[9px] font-black text-brand-600 bg-brand-50 px-2 py-0.5 rounded-lg uppercase tracking-widest border border-brand-100/50">{student.shift_display}</span>
-                        <div className={cn(
-                          "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                          student.payment_status === 'paid' 
-                            ? "bg-green-50 text-green-600 border-green-100" 
-                            : "bg-amber-50 text-amber-600 border-amber-100"
-                        )}>
-                          {student.payment_status}
-                        </div>
+                        {isExpired ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRenewSheet({ isOpen: true, student }) }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            Renew
+                          </button>
+                        ) : (
+                          <div className={cn(
+                            "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                            student.payment_status === 'paid' 
+                              ? "bg-green-50 text-green-600 border-green-100" 
+                              : "bg-amber-50 text-amber-600 border-amber-100"
+                          )}>
+                            {student.payment_status}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -174,6 +189,12 @@ export default function StudentList({ students }: { students: any[] }) {
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, student: null })}
         student={deleteModal.student}
+      />
+
+      <RenewStudentSheet
+        isOpen={renewSheet.isOpen}
+        onClose={() => setRenewSheet({ isOpen: false, student: null })}
+        student={renewSheet.student}
       />
     </>
   )

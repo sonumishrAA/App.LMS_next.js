@@ -152,3 +152,73 @@ export async function updateStudent(studentId: string, data: any) {
     return { success: false, error: error.message }
   }
 }
+
+export async function renewStudent(data: any) {
+  const adminClient = createAdminClient()
+
+  try {
+    // 1. Calculate new end date from renewal_date
+    const endDate = new Date(data.renewal_date)
+    endDate.setMonth(endDate.getMonth() + data.plan_months)
+    const endDateStr = endDate.toISOString().split('T')[0]
+
+    // 2. Check if the new seat-shifts are already taken by SOMEONE ELSE
+    const { data: existingShifts } = await adminClient
+      .from('student_seat_shifts')
+      .select('id')
+      .eq('seat_id', data.seat_id)
+      .in('shift_code', data.selected_shifts)
+      .neq('student_id', data.student_id)
+      .gte('end_date', new Date().toISOString().split('T')[0])
+
+    if (existingShifts && existingShifts.length > 0) {
+      throw new Error('This seat or some of its shifts are already occupied by another student.')
+    }
+
+    // 3. Update Student record
+    const { error: studentError } = await adminClient
+      .from('students')
+      .update({
+        end_date: endDateStr,
+        plan_months: data.plan_months,
+        payment_status: data.payment_status,
+        total_fee: data.total_fee,
+        monthly_rate: data.monthly_rate,
+        seat_id: data.seat_id,
+        locker_id: data.locker_id || null,
+        combination_key: data.shift_display,
+        shift_display: data.shift_display,
+        selected_shifts: data.selected_shifts,
+        admission_date: data.renewal_date,
+      })
+      .eq('id', data.student_id)
+
+    if (studentError) throw new Error(`Student update failed: ${studentError.message}`)
+
+    // 4. Update Shifts (Delete old, insert new)
+    await adminClient.from('student_seat_shifts').delete().eq('student_id', data.student_id)
+
+    const shiftInserts = data.selected_shifts.map((s: string) => ({
+      student_id: data.student_id,
+      seat_id: data.seat_id,
+      shift_code: s,
+      end_date: endDateStr,
+    }))
+
+    const { error: shiftError } = await adminClient.from('student_seat_shifts').insert(shiftInserts)
+    if (shiftError) throw new Error(`Shift insert failed: ${shiftError.message}`)
+
+    // 5. Update Locker Status
+    if (data.old_locker_id && data.old_locker_id !== data.locker_id) {
+      await adminClient.from('lockers').update({ status: 'free' }).eq('id', data.old_locker_id)
+    }
+    if (data.locker_id) {
+      await adminClient.from('lockers').update({ status: 'occupied' }).eq('id', data.locker_id)
+    }
+
+    revalidatePath('/')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
