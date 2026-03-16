@@ -3,9 +3,12 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function submitNewAdmission(data: any, libraryId: string, discountAmount: number, staffDetails: any) {
+export async function submitNewAdmission(data: any) {
   const adminClient = createAdminClient()
-  
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: staffDetails } = await supabase.from('staff').select('role, name').eq('user_id', user?.id).single()
+
   try {
     // 1. Calculate end date
     const endDate = new Date(data.admission_date)
@@ -17,7 +20,7 @@ export async function submitNewAdmission(data: any, libraryId: string, discountA
       .from('student_seat_shifts')
       .select('id')
       .eq('seat_id', data.seat_id)
-      .in('shift_code', data.shifts)
+      .in('shift_code', data.selected_shifts)
       .gte('end_date', new Date().toISOString().split('T')[0])
 
     if (existingShifts && existingShifts.length > 0) {
@@ -28,7 +31,7 @@ export async function submitNewAdmission(data: any, libraryId: string, discountA
     const { data: newStudent, error: studentError } = await adminClient
       .from('students')
       .insert({
-        library_id: libraryId,
+        library_id: data.library_id,
         name: data.name,
         father_name: data.father_name || null,
         address: data.address || null,
@@ -38,13 +41,13 @@ export async function submitNewAdmission(data: any, libraryId: string, discountA
         end_date: endDateStr,
         plan_months: data.plan_months,
         payment_status: data.payment_status,
-        total_fee: data.final_price,
-        monthly_rate: data.final_price / data.plan_months,
+        total_fee: data.total_fee,
+        monthly_rate: data.monthly_rate,
         seat_id: data.seat_id,
-        locker_id: data.has_locker ? data.locker_id : null,
-        combination_key: data.selectedCombo,
-        shift_display: data.selectedCombo,
-        selected_shifts: data.shifts
+        locker_id: data.locker_id || null,
+        combination_key: data.shift_display,
+        shift_display: data.shift_display,
+        selected_shifts: data.selected_shifts
       })
       .select()
       .single()
@@ -52,7 +55,7 @@ export async function submitNewAdmission(data: any, libraryId: string, discountA
     if (studentError) throw new Error(`Student insert failed: ${studentError.message}`)
 
     // 3. Insert Shift Records
-    const shiftInserts = data.shifts.map((s: string) => ({
+    const shiftInserts = data.selected_shifts.map((s: string) => ({
       student_id: newStudent.id,
       seat_id: data.seat_id,
       shift_code: s,
@@ -67,20 +70,10 @@ export async function submitNewAdmission(data: any, libraryId: string, discountA
     }
 
     // 4. Update Locker Status if assigned
-    if (data.has_locker && data.locker_id) {
+    if (data.locker_id) {
       await adminClient.from('lockers').update({ status: 'occupied' }).eq('id', data.locker_id)
     }
 
-    // 5. If staff applies discount, send notification to owner
-    if (staffDetails?.role === 'staff' && discountAmount > 0) {
-      await adminClient.from('notifications').insert({
-        library_id: libraryId,
-        title: 'Discount Applied',
-        message: `${staffDetails.name} applied a discount of ₹${discountAmount} for student ${data.name}.`,
-        type: 'alert'
-      })
-    }
-    
     revalidatePath('/')
     return { success: true }
   } catch (error: any) {

@@ -154,7 +154,7 @@ export default function NewAdmissionSheet({ isOpen, onClose }: { isOpen: boolean
   const totalFee = currentPlan ? (currentPlan.fee + lockerMonthlyFee * formData.plan_months) : 0
 
   const availableMonths = useMemo(
-    () => [...new Set(combos.filter(c => c.combination_key === selectedCombo).map(c => c.months))].sort((a, b) => a - b),
+    () => Array.from(new Set(combos.filter(c => c.combination_key === selectedCombo).map(c => c.months))).sort((a, b) => a - b),
     [combos, selectedCombo]
   )
 
