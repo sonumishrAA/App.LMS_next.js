@@ -8,23 +8,18 @@ export default function InteractiveGrid({ initialSeats, comboPlans }: { initialS
   const [selectedSeat, setSelectedSeat] = useState<any | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
-  const handleSeatClick = (seat: any) => {
-    setSelectedSeat(seat)
-    setIsSheetOpen(true)
-  }
-
   return (
     <>
-      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2">
         {initialSeats.map((seat, index) => (
           <SeatBox
             key={seat.id}
             seatNumber={seat.seat_number}
-            status={seat.status}
-            shiftDisplay={seat.shiftDisplay}
+            overallStatus={seat.status}
+            shifts={seat.shifts || []}
             hasLocker={seat.hasLocker}
-            onClick={() => handleSeatClick(seat)}
-            animationDelay={index * 30}
+            onClick={() => { setSelectedSeat(seat); setIsSheetOpen(true) }}
+            animationDelay={index * 25}
           />
         ))}
       </div>
