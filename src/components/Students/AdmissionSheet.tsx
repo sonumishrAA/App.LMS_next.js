@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { admissionSchema } from '@/lib/validators'
 import BottomSheet from '../ui/BottomSheet'
 import { CheckCircle2, User, MapPin, Calendar, CreditCard, LayoutGrid, Phone } from 'lucide-react'
@@ -19,7 +20,7 @@ export default function AdmissionSheet({
   initialSeatNumber?: string
 }) {
   const [step, setStep] = useState(1)
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<z.infer<typeof admissionSchema>>({
     resolver: zodResolver(admissionSchema),
     defaultValues: {
       admission_date: new Date().toISOString().split('T')[0],
