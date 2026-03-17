@@ -1,6 +1,6 @@
 import ExpiredStudentsCard from '@/components/Dashboard/ExpiredStudentsCard'
 import ShiftOccupancyCard from '@/components/Dashboard/ShiftOccupancyCard'
-import { Users, Grid, CreditCard, Clock, Bell, TrendingUp, AlertTriangle, UserPlus, IndianRupee } from 'lucide-react'
+import { Users, Grid, CreditCard, Clock, Bell, TrendingUp, AlertTriangle, UserPlus, IndianRupee, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { daysUntil } from '@/lib/utils'
@@ -208,18 +208,24 @@ export default async function DashboardPage() {
       <ShiftOccupancyCard shifts={shiftStats} />
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/students" className="bg-brand-500 text-white p-4 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg shadow-brand-500/20 active:scale-95 transition-transform">
-          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-            <UserPlus className="w-5 h-5" />
+      <div className="grid grid-cols-3 gap-2">
+        <Link href="/students" className="bg-brand-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg shadow-brand-500/20 active:scale-95 transition-transform">
+          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+            <UserPlus className="w-4 h-4" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest">New Admission</span>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-center">New<br/>Admission</span>
         </Link>
-        <Link href="/seat-map" className="bg-white border border-gray-200 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
-          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
-            <Grid className="w-5 h-5" />
+        <Link href="/seat-map" className="bg-white border border-gray-200 p-3 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
+            <Grid className="w-4 h-4" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Seat Map</span>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-gray-600 text-center">Seat<br/>Map</span>
+        </Link>
+        <Link href="/financial-calendar" className="bg-green-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95 transition-transform">
+          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-center">Financial<br/>Calendar</span>
         </Link>
       </div>
 

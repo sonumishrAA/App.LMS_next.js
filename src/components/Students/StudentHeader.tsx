@@ -17,14 +17,16 @@ interface Filter {
 export default function StudentHeader({ 
   currentFilter, 
   filters,
-  searchQuery: initialSearch 
+  searchQuery,
+  role = 'staff'
 }: { 
   currentFilter: string
   filters: Filter[]
   searchQuery?: string 
+  role?: string
 }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
-  const [search, setSearch] = useState(initialSearch || '')
+  const [search, setSearch] = useState(searchQuery || '')
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -48,12 +50,14 @@ export default function StudentHeader({
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-serif text-brand-900 leading-none">Students</h2>
           <div className="flex gap-2">
-            <Link 
-              href="/students/import"
-              className="bg-white border border-gray-200 text-gray-600 p-2.5 rounded-xl active:scale-95 transition-transform"
-            >
-              <Upload className="w-5 h-5" />
-            </Link>
+            {role === 'owner' && (
+              <Link 
+                href="/students/import"
+                className="bg-white border border-gray-200 text-gray-600 p-2.5 rounded-xl active:scale-95 transition-transform"
+              >
+                <Upload className="w-5 h-5" />
+              </Link>
+            )}
             <button 
               onClick={() => setIsSheetOpen(true)}
               className="bg-brand-500 text-white p-2.5 rounded-xl shadow-lg shadow-brand-500/20 active:scale-95 transition-transform"

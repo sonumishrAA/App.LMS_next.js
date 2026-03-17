@@ -7,7 +7,7 @@ import DeleteStudentDialog from './DeleteStudentDialog'
 import EditStudentSheet from './EditStudentSheet'
 import RenewStudentSheet from './RenewStudentSheet'
 
-export default function StudentList({ students }: { students: any[] }) {
+export default function StudentList({ students, role = 'staff' }: { students: any[], role?: string }) {
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; student: any | null }>({
     isOpen: false,
     student: null
@@ -93,15 +93,17 @@ export default function StudentList({ students }: { students: any[] }) {
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteModal({ isOpen: true, student: { id: student.id, name: student.name, seat_number: student.seats?.seat_number, payment_status: student.payment_status, total_fee: student.total_fee, amount_paid: student.amount_paid, discount_amount: student.discount_amount } })
-                      }}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {role === 'owner' && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeleteModal({ isOpen: true, student: { id: student.id, name: student.name, seat_number: student.seats?.seat_number, payment_status: student.payment_status, total_fee: student.total_fee, amount_paid: student.amount_paid, discount_amount: student.discount_amount } })
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

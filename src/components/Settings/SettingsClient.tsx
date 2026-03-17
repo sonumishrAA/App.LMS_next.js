@@ -271,9 +271,11 @@ export default function SettingsClient({
                 <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{stats.seats} Total Seats Configured</p>
               </div>
             </div>
-            <button className="p-2.5 bg-gray-50 rounded-xl text-gray-400 hover:text-brand-500 hover:bg-brand-50 transition-all">
-              <Edit2 className="w-4 h-4" />
-            </button>
+            {profile?.role === 'owner' && (
+              <button className="p-2.5 bg-gray-50 rounded-xl text-gray-400 hover:text-brand-500 hover:bg-brand-50 transition-all">
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between active:scale-[0.98] transition-transform group">
@@ -286,9 +288,11 @@ export default function SettingsClient({
                 <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">₹{lockerPolicy?.monthly_fee || 0}/mo • {lockerPolicy?.eligible_combos?.length || 0} combos</p>
               </div>
             </div>
-            <button className="p-2.5 bg-gray-50 rounded-xl text-gray-400 hover:text-brand-500 hover:bg-brand-50 transition-all">
-              <Edit2 className="w-4 h-4" />
-            </button>
+            {profile?.role === 'owner' && (
+              <button className="p-2.5 bg-gray-50 rounded-xl text-gray-400 hover:text-brand-500 hover:bg-brand-50 transition-all">
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -297,7 +301,8 @@ export default function SettingsClient({
       <div className="space-y-4 pt-2">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Staff Accounts</h3>
-          <span className="text-[10px] font-black text-brand-500">{staffMembers.length}/2 USED</span>
+          {/* Note: In DB logic, the owner can add unlimited staff; UI indicates count */}
+          <span className="text-[10px] font-black text-brand-500">{staffMembers.length} ACTIVE</span>
         </div>
 
         <div className="space-y-3">
@@ -341,14 +346,16 @@ export default function SettingsClient({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 border-t border-gray-50">
-                <button className="p-4 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-50 flex items-center justify-center gap-2">
-                  <Lock className="w-3.5 h-3.5" /> Reset Password
-                </button>
-                <button className="p-4 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
-                  <Users className="w-3.5 h-3.5" /> Remove
-                </button>
-              </div>
+              {profile?.role === 'owner' && (
+                <div className="grid grid-cols-2 border-t border-gray-50">
+                  <button className="p-4 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-50 flex items-center justify-center gap-2">
+                    <Lock className="w-3.5 h-3.5" /> Reset Password
+                  </button>
+                  <button className="p-4 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
+                    <Users className="w-3.5 h-3.5" /> Remove
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

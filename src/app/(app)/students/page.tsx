@@ -18,11 +18,12 @@ export default async function StudentsPage({
   // Robust library context
   const { data: staff } = await supabase
     .from('staff')
-    .select('library_ids')
+    .select('library_ids, role')
     .eq('user_id', user.id)
     .single()
 
   const libraryId = await getActiveLibraryId(user.id, staff?.library_ids || [])
+  const role = staff?.role || 'staff'
   if (!libraryId) return <div className="p-8 text-center text-gray-500 italic">No library context found.</div>
 
   const currentFilter = resolvedParams.filter || 'all'
@@ -88,10 +89,10 @@ export default async function StudentsPage({
 
   return (
     <div className="pb-24 max-w-7xl mx-auto w-full">
-      <StudentHeader currentFilter={currentFilter} filters={filters} searchQuery={searchQuery} />
+      <StudentHeader currentFilter={currentFilter} filters={filters} searchQuery={searchQuery} role={role} />
 
       {students && students.length > 0 ? (
-        <StudentList students={students} />
+        <StudentList students={students} role={role} />
       ) : (
         <div className="py-20 mt-28 text-center space-y-4">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-300">
