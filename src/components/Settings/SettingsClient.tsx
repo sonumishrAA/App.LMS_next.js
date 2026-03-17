@@ -651,7 +651,7 @@ export default function SettingsClient({
                             key={combo}
                             onClick={() => {
                               const next = isSelected 
-                                ? lockersForm.eligible_combos.filter(c => c !== combo)
+                                ? lockersForm.eligible_combos.filter((c: string) => c !== combo)
                                 : [...lockersForm.eligible_combos, combo]
                               setLockersForm({ ...lockersForm, eligible_combos: next })
                             }}
