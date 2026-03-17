@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const adminSupabase = createAdminClient()
     const { data: ownerProfile, error: profileError } = await adminSupabase
       .from('staff')
-      .select('name, phone, role, library_ids')
+      .select('name, role, library_ids')
       .eq('user_id', user.id)
       .eq('role', 'owner')
       .limit(1)
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       owner_id: user.id,
       owner_email: user.email,
       owner_name: ownerProfile.name || '',
-      owner_phone: ownerProfile.phone || '',
+      owner_phone: '',
       library_id: purpose === 'renew' ? library_id : undefined,
       purpose
     })
