@@ -67,7 +67,8 @@ export default function RenewStudentSheet({ isOpen, onClose, student }: RenewStu
 
   async function fetchData() {
     setLoadingData(true)
-    const { data: { user } } = await supabaseBrowser.auth.getUser()
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const cookieLibId = document.cookie.match(/active_library_id=([^;]+)/)?.[1]

@@ -61,7 +61,8 @@ export default function NewAdmissionSheet({ isOpen, onClose }: { isOpen: boolean
 
   async function fetchInitialData() {
     setLoadingData(true)
-    const { data: { user } } = await supabaseBrowser.auth.getUser()
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     // Get library from cookie first (multi-library support)
@@ -195,7 +196,7 @@ export default function NewAdmissionSheet({ isOpen, onClose }: { isOpen: boolean
       plan_months: formData.plan_months,
       payment_status: formData.payment_status,
       total_fee: totalFee,
-      amount_paid: formData.payment_status === 'partial' ? formData.amount_paid : (formData.payment_status === 'discounted' ? totalFee - formData.discount_amount : (formData.payment_status === 'paid' ? totalFee : 0)),
+      amount_paid: formData.payment_status === 'partial' ? formData.amount_paid : (formData.payment_status === 'discounted' ? (totalFee - formData.discount_amount) : (formData.payment_status === 'paid' ? totalFee : 0)),
       discount_amount: formData.payment_status === 'discounted' ? formData.discount_amount : 0,
       monthly_rate: currentPlan.fee / formData.plan_months,
       admission_date: formData.admission_date,

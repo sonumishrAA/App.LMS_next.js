@@ -19,7 +19,8 @@ export default function ImportPage() {
 
   useEffect(() => {
     async function fetchPolicy() {
-      const { data: { user } } = await supabaseBrowser.auth.getUser()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      const user = session?.user
       if (!user) return
 
       const { data: staff } = await supabaseBrowser

@@ -27,7 +27,8 @@ export default function SelectLibraryPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabaseBrowser.auth.getUser()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      const user = session?.user
       if (!user) { router.push('/login'); return }
 
       const { data: staff } = await supabaseBrowser

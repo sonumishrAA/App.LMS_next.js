@@ -36,7 +36,7 @@ export default function LoginPage() {
     }
 
     try {
-      const { error: authError } = await supabaseBrowser.auth.signInWithPassword({
+      const { data: signInData, error: authError } = await supabaseBrowser.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
@@ -50,14 +50,45 @@ export default function LoginPage() {
         return
       }
 
+      const userId = signInData.user?.id
+      if (!userId) {
+        setError({ message: 'Login failed. Please try again.', type: 'auth' })
+        setLoading(false)
+        return
+      }
+
       // Get staff to check library count
-      const { data: staff } = await supabaseBrowser
+      const { data: staff, error: staffError } = await supabaseBrowser
         .from('staff')
         .select('library_ids')
-        .eq('user_id', (await supabaseBrowser.auth.getUser()).data.user!.id)
-        .single()
+        .eq('user_id', userId)
+        .maybeSingle()
 
-      const libraryIds = staff?.library_ids || []
+      if (staffError) {
+        setError({ message: staffError.message || 'Unable to load staff profile.', type: 'auth' })
+        setLoading(false)
+        return
+      }
+
+      let libraryIds: string[] = staff?.library_ids || []
+
+      // Fallback for older owner accounts that may not have a staff row yet.
+      if (libraryIds.length === 0) {
+        const { data: libs, error: libsError } = await supabaseBrowser
+          .from('libraries')
+          .select('id')
+        if (!libsError && libs?.length) {
+          libraryIds = libs.map(l => l.id)
+        }
+      }
+
+      if (libraryIds.length === 0) {
+        await supabaseBrowser.auth.signOut()
+        document.cookie = 'active_library_id=; path=/; max-age=0'
+        setError({ message: 'Your account is not linked to any library. Please contact the owner.', type: 'auth' })
+        setLoading(false)
+        return
+      }
 
       if (libraryIds.length > 1) {
         // Multiple libraries → clear old selection, let user pick
@@ -114,6 +145,7 @@ export default function LoginPage() {
               <input
                 {...register('email')}
                 type="email"
+                autoComplete="email"
                 className={`block w-full rounded-xl border ${errors.email ? 'border-red-500' : 'border-gray-200'} bg-gray-50 px-10 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all outline-none text-gray-800`}
                 placeholder="owner@example.com"
               />
@@ -135,6 +167,7 @@ export default function LoginPage() {
               <input
                 {...register('password')}
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
                 className={`block w-full rounded-xl border ${errors.password ? 'border-red-500' : 'border-gray-200'} bg-gray-50 px-10 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all outline-none text-gray-800`}
                 placeholder="••••••••"
               />

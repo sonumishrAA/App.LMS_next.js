@@ -43,7 +43,8 @@ function RenewContent() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabaseBrowser.auth.getUser()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      const user = session?.user
       if (!user) { router.push('/login'); return }
 
       // Get library id from param or first library

@@ -24,7 +24,8 @@ export default function ChangePasswordPage() {
       setLoading(false)
     } else {
       // Also update staff table to set force_password_change = false
-      const { data: { user } } = await supabaseBrowser.auth.getUser()
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      const user = session?.user
       if (user) {
         await supabaseBrowser
           .from('staff')
@@ -58,6 +59,7 @@ export default function ChangePasswordPage() {
               type="password"
               required
               minLength={8}
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mt-1 block w-full rounded-md border border-gray-200 px-3 py-2 shadow-sm focus:border-brand-500 focus:ring-brand-500"

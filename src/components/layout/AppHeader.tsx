@@ -23,8 +23,12 @@ export default function AppHeader() {
 
   useEffect(() => {
     async function fetchInitialData() {
-      const { data: { user } } = await supabaseBrowser.auth.getUser()
-      if (!user) return
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      const user = session?.user
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       const { data: staff } = await supabaseBrowser
         .from('staff')
