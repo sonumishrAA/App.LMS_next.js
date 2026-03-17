@@ -49,12 +49,13 @@ function RenewContent() {
       // Get library id from param or first library
       let libId = libraryId
       if (!libId) {
+        const cookieLibId = document.cookie.match(/active_library_id=([^;]+)/)?.[1]
         const { data: staff } = await supabaseBrowser
           .from('staff')
           .select('library_ids')
           .eq('user_id', user.id)
           .single()
-        libId = staff?.library_ids?.[0]
+        libId = cookieLibId || staff?.library_ids?.[0]
       }
 
       if (!libId) { router.push('/'); return }
@@ -114,7 +115,7 @@ function RenewContent() {
           if (data.success) {
             setSuccess(true)
             // Clear cookie so middleware re-checks
-            document.cookie = `selected_library_id=${library.id}; path=/; max-age=2592000`
+            document.cookie = `active_library_id=${library.id}; path=/; max-age=2592000`
             setTimeout(() => router.push('/'), 2000)
           }
         },

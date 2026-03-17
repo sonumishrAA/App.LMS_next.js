@@ -3,6 +3,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import SubscriptionBanner from '@/components/layout/SubscriptionBanner'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getActiveLibraryId } from '@/lib/getActiveLibrary'
 
 export default async function AppLayout({
   children,
@@ -21,7 +22,7 @@ export default async function AppLayout({
     .eq('user_id', user.id)
     .single()
 
-  const libraryId = staff?.library_ids?.[0]
+  const libraryId = await getActiveLibraryId(user.id, staff?.library_ids || [])
   let daysLeft = 999 // default: far from expiring
 
   if (libraryId) {

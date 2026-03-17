@@ -56,12 +56,12 @@ export async function middleware(request: NextRequest) {
       const libraryIds: string[] = staff?.library_ids || []
 
       // If owner has 2+ libraries and no cookie selected yet → show selection screen
-      if (libraryIds.length > 1 && !request.cookies.get('selected_library_id')?.value) {
+      if (libraryIds.length > 1 && !request.cookies.get('active_library_id')?.value) {
         return NextResponse.redirect(new URL('/select-library', request.url))
       }
 
       // Get the selected library id
-      const selectedLibId = request.cookies.get('selected_library_id')?.value || libraryIds[0]
+      const selectedLibId = request.cookies.get('active_library_id')?.value || libraryIds[0]
 
       if (selectedLibId) {
         const { data: library } = await supabase

@@ -40,7 +40,7 @@ export default function SelectLibraryPage() {
 
       // If only 1 library, skip selection
       if (staff.library_ids.length === 1) {
-        document.cookie = `selected_library_id=${staff.library_ids[0]}; path=/; max-age=2592000`
+        document.cookie = `active_library_id=${staff.library_ids[0]}; path=/; max-age=2592000`
         router.push('/')
         return
       }
@@ -113,7 +113,7 @@ export default function SelectLibraryPage() {
     }
 
     // Set cookie for 30 days
-    document.cookie = `selected_library_id=${lib.id}; path=/; max-age=2592000`
+    document.cookie = `active_library_id=${lib.id}; path=/; max-age=2592000`
     router.push('/')
   }
 

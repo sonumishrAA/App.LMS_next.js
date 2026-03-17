@@ -9,7 +9,7 @@ export default function BlockedPage() {
 
     async function handleLogout() {
         await supabaseBrowser.auth.signOut()
-        document.cookie = 'selected_library_id=; path=/; max-age=0'
+        document.cookie = 'active_library_id=; path=/; max-age=0'
         router.push('/login')
     }
 

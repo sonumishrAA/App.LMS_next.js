@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { getActiveLibraryId } from '@/lib/getActiveLibrary'
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     const rows = lines.slice(1)
 
     const { data: staff } = await supabase.from('staff').select('library_ids').eq('user_id', user.id).single()
-    const libraryId = staff?.library_ids?.[0]
+    const libraryId = await getActiveLibraryId(user.id, staff?.library_ids || [])
     if (!libraryId) return NextResponse.json({ success: false, message: 'No library assigned' }, { status: 403 })
 
     const [

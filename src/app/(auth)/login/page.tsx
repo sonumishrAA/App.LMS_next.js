@@ -61,11 +61,11 @@ export default function LoginPage() {
 
       if (libraryIds.length > 1) {
         // Multiple libraries → clear old selection, let user pick
-        document.cookie = 'selected_library_id=; path=/; max-age=0'
+        document.cookie = 'active_library_id=; path=/; max-age=0'
         router.push('/select-library')
       } else if (libraryIds.length === 1) {
         // Single library → set cookie and go to dashboard
-        document.cookie = `selected_library_id=${libraryIds[0]}; path=/; max-age=2592000`
+        document.cookie = `active_library_id=${libraryIds[0]}; path=/; max-age=2592000`
         router.push('/')
       } else {
         router.push('/')

@@ -28,11 +28,13 @@ export default function ImportPage() {
         .eq('user_id', user.id)
         .single()
 
-      if (staff?.library_ids?.[0]) {
+      const libId = document.cookie.match(/active_library_id=([^;]+)/)?.[1] || staff?.library_ids?.[0]
+
+      if (libId) {
         const { data: lp } = await supabaseBrowser
           .from('locker_policies')
           .select('eligible_combos, monthly_fee')
-          .eq('library_id', staff.library_ids[0])
+          .eq('library_id', libId)
           .single()
         
         if (lp) setPolicy(lp)
