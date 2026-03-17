@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Download, Upload, AlertCircle, CheckCircle2, Loader2, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabaseBrowser } from '@/lib/supabase/client'
+import { callEdgeFunction } from '@/lib/api'
 
 interface LockerPolicy {
   eligible_combos: string[]
@@ -60,20 +61,19 @@ export default function ImportPage() {
     formData.append('file', file)
 
     try {
-      const res = await fetch('/api/import/students', {
-        method: 'POST',
+      const data = await callEdgeFunction('import-students', {
         body: formData,
+        method: 'POST'
       })
-      const data = await res.json()
       setResult({
         success: data.success,
         message: data.message,
         details: data.details
       })
-    } catch (error) {
+    } catch (error: any) {
       setResult({
         success: false,
-        message: 'Failed to upload file. Please try again.'
+        message: error.message || 'Failed to upload file. Please try again.'
       })
     } finally {
       setUploading(false)
@@ -101,7 +101,7 @@ export default function ImportPage() {
           </div>
         </div>
         <a 
-          href="/api/import/sample-csv" 
+          href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/sample-csv`} 
           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border-2 border-brand-500 text-brand-500 font-bold text-xs hover:bg-brand-50 transition-colors active:scale-95"
         >
           Download Template.csv

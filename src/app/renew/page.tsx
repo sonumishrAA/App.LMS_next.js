@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabaseBrowser } from '@/lib/supabase/client'
 import { AlertTriangle, Shield, Loader2, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { callEdgeFunction } from '@/lib/api'
 
 declare global {
   interface Window { Razorpay: any }
@@ -81,16 +82,23 @@ function RenewContent() {
   async function handlePay() {
     setPaying(true)
     try {
-      // Create order
-      const res = await fetch('/api/create-renewal-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // 1. Generate Token
+      const { token } = await callEdgeFunction('generate-token', {
+        body: {
+          library_id: library.id,
+          purpose: 'renew'
+        },
+        useAuthToken: true
+      })
+
+      // 2. Create order
+      const { order_id, amount, key } = await callEdgeFunction('create-renewal-order', {
+        body: {
+          token,
           library_id: library.id,
           plan_months: selectedPlan.months,
-        }),
+        },
       })
-      const { order_id, amount, key } = await res.json()
 
       const options = {
         key,
@@ -100,24 +108,25 @@ function RenewContent() {
         description: `${selectedPlan.label} Subscription — ${library.name}`,
         order_id,
         handler: async (response: any) => {
-          // Verify payment
-          const verifyRes = await fetch('/api/verify-renewal', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              library_id: library.id,
-              plan_months: selectedPlan.months,
-            }),
-          })
-          const data = await verifyRes.json()
-          if (data.success) {
-            setSuccess(true)
-            // Clear cookie so middleware re-checks
-            document.cookie = `active_library_id=${library.id}; path=/; max-age=2592000`
-            setTimeout(() => router.push('/'), 2000)
+          // 3. Verify payment
+          try {
+            const data = await callEdgeFunction('verify-renewal', {
+              body: {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                library_id: library.id,
+                plan_months: selectedPlan.months,
+              },
+            })
+            if (data.success) {
+              setSuccess(true)
+              // Clear cookie so middleware re-checks
+              document.cookie = `active_library_id=${library.id}; path=/; max-age=2592000`
+              setTimeout(() => router.push('/'), 2000)
+            }
+          } catch (err) {
+            console.error('Payment verification failed', err)
           }
         },
         prefill: { name: library.name },
