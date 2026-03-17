@@ -8,11 +8,17 @@ export async function callEdgeFunction(
     headers?: Record<string, string>
     useAuthToken?: boolean
     libraryId?: string
+    queryParams?: Record<string, string>
   } = {}
 ) {
-  const { method = 'POST', body, headers = {}, useAuthToken = true, libraryId } = options
+  const { method = 'POST', body, headers = {}, useAuthToken = true, libraryId, queryParams } = options
 
-  const url = `${SUPABASE_URL}/functions/v1/${name}`
+  let url = `${SUPABASE_URL}/functions/v1/${name}`
+
+  if (queryParams) {
+    const searchParams = new URLSearchParams(queryParams)
+    url += `?${searchParams.toString()}`
+  }
   
   const isFormData = body instanceof FormData
   
