@@ -40,12 +40,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: You do not own this library' }, { status: 403 })
     }
 
+    // Fetch phone from one of the owner's libraries since staff table doesn't store phone
+    let ownerPhone = ''
+    if (ownerProfile.library_ids && ownerProfile.library_ids.length > 0) {
+      const { data: libData } = await adminSupabase
+        .from('libraries')
+        .select('phone')
+        .eq('id', ownerProfile.library_ids[0])
+        .limit(1)
+        .single()
+      
+      if (libData && libData.phone) {
+        ownerPhone = libData.phone
+      }
+    }
+
     // Generate token
     const token = signCrossSiteToken({
       owner_id: user.id,
       owner_email: user.email,
       owner_name: ownerProfile.name || '',
-      owner_phone: '',
+      owner_phone: ownerPhone,
       library_id: purpose === 'renew' ? library_id : undefined,
       purpose
     })
